@@ -1,5 +1,6 @@
 package info.nightscout.utils;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import info.nightscout.androidaps.data.GlucoseStatus;
@@ -37,6 +38,7 @@ public class BolusWizardTest {
 
     @Test
     public void doCalc1() throws Exception {
+        Assert.assertEquals(1, 1);
     }
 
 }
