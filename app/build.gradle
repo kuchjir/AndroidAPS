@@ -1,14 +1,19 @@
 buildscript {
     repositories {
+        mavenCentral()
         maven { url 'https://maven.fabric.io/public' }
     }
 
     dependencies {
         classpath 'io.fabric.tools:gradle:1.+'
+        classpath 'net.saliman:gradle-cobertura-plugin:2.5.3'
+        classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.2'
     }
 }
 apply plugin: 'com.android.application'
 apply plugin: 'io.fabric'
+apply plugin: 'cobertura'
+apply plugin: 'com.github.kt3k.coveralls'
 
 repositories {
     maven { url 'https://maven.fabric.io/public' }
@@ -189,3 +194,5 @@ dependencies {
     compile 'com.google.guava:guava:20.0'
 
 }
+
+cobertura.coverageFormats = ['html', 'xml']
