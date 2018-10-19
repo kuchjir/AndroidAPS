@@ -717,7 +717,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         final QuickWizardEntry quickWizardEntry = OverviewPlugin.getPlugin().quickWizard.getActive();
         if (quickWizardEntry != null && actualBg != null) {
             quickWizardButton.setVisibility(View.VISIBLE);
-            final BolusWizard wizard = quickWizardEntry.doCalc(profile, tempTarget, actualBg, true);
+            final BolusWizard wizard = quickWizardEntry.doCalc(profile, tempTarget, actualBg);
 
             final JSONObject boluscalcJSON = new JSONObject();
             try {
@@ -1212,7 +1212,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         if (quickWizardEntry != null && lastBG != null && pump.isInitialized() && !pump.isSuspended()) {
             quickWizardButton.setVisibility(View.VISIBLE);
             String text = quickWizardEntry.buttonText() + "\n" + DecimalFormatter.to0Decimal(quickWizardEntry.carbs()) + "g";
-            BolusWizard wizard = quickWizardEntry.doCalc(profile, tempTarget, lastBG, false);
+            BolusWizard wizard = quickWizardEntry.doCalc(profile, tempTarget, lastBG);
             text += " " + DecimalFormatter.to2Decimal(wizard.calculatedTotalInsulin) + "U";
             quickWizardButton.setText(text);
             if (wizard.calculatedTotalInsulin <= 0)
@@ -1278,7 +1278,7 @@ public class OverviewFragment extends Fragment implements View.OnClickListener, 
         // cob
         if (cobView != null) { // view must not exists
             String cobText = "";
-            AutosensData autosensData = IobCobCalculatorPlugin.getLastAutosensData("Overview COB");
+            AutosensData autosensData = IobCobCalculatorPlugin.getLastAutosensDataSynchronized("Overview COB");
             if (autosensData != null)
                 cobText = (int) autosensData.cob + " g";
             cobView.setText(cobText);

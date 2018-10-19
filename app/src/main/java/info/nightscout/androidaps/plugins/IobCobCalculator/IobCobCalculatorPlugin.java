@@ -425,7 +425,7 @@ public class IobCobCalculatorPlugin implements PluginBase {
 
 
     @Nullable
-    public static AutosensData getLastAutosensData(String reason) {
+    private static AutosensData getLastAutosensData(String reason) {
         if (autosensDataTable.size() < 1) {
             log.debug("AUTOSENSDATA null: autosensDataTable empty (" + reason + ")");
             return null;
