@@ -2,27 +2,38 @@ package info.nightscout.androidaps.db;
 
 import android.graphics.Color;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.table.DatabaseTable;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Objects;
 
+import info.nightscout.androidaps.MainApp;
+import info.nightscout.androidaps.R;
 import info.nightscout.androidaps.data.Profile;
 import info.nightscout.androidaps.interfaces.Interval;
-import info.nightscout.androidaps.plugins.Overview.graphExtensions.DataPointWithLabelInterface;
-import info.nightscout.androidaps.plugins.Overview.graphExtensions.PointsWithLabelGraphSeries;
-import info.nightscout.androidaps.plugins.ProfileLocal.LocalProfilePlugin;
-import info.nightscout.utils.DateUtil;
-import info.nightscout.utils.DecimalFormatter;
+import info.nightscout.androidaps.logging.L;
+import info.nightscout.androidaps.plugins.bus.RxBus;
+import info.nightscout.androidaps.plugins.general.overview.events.EventNewNotification;
+import info.nightscout.androidaps.plugins.general.overview.graphExtensions.DataPointWithLabelInterface;
+import info.nightscout.androidaps.plugins.general.overview.graphExtensions.PointsWithLabelGraphSeries;
+import info.nightscout.androidaps.plugins.general.overview.notifications.Notification;
+import info.nightscout.androidaps.plugins.profile.local.LocalProfilePlugin;
+import info.nightscout.androidaps.plugins.treatments.TreatmentsPlugin;
+import info.nightscout.androidaps.utils.DateUtil;
+import info.nightscout.androidaps.utils.DecimalFormatter;
+import info.nightscout.androidaps.utils.T;
 
 @DatabaseTable(tableName = DatabaseHelper.DATABASE_PROFILESWITCHES)
 public class ProfileSwitch implements Interval, DataPointWithLabelInterface {
-    private static Logger log = LoggerFactory.getLogger(ProfileSwitch.class);
+    private static Logger log = LoggerFactory.getLogger(L.DATABASE);
 
     @DatabaseField(id = true)
     public long date;
@@ -56,19 +67,51 @@ public class ProfileSwitch implements Interval, DataPointWithLabelInterface {
 
     private Profile profile = null;
 
+    public ProfileSwitch date(long date) {
+        this.date = date;
+        return this;
+    }
+
+    public ProfileSwitch profileName(String profileName) {
+        this.profileName = profileName;
+        return this;
+    }
+
+    public ProfileSwitch profile(Profile profile) {
+        this.profile = profile;
+        return this;
+    }
+
+    public ProfileSwitch source(int source) {
+        this.source = source;
+        return this;
+    }
+
+    public ProfileSwitch duration(int duration) {
+        this.durationInMinutes = duration;
+        return this;
+    }
+
+    @Nullable
     public Profile getProfileObject() {
         if (profile == null)
             try {
                 profile = new Profile(new JSONObject(profileJson), percentage, timeshift);
-            } catch (JSONException e) {
+            } catch (Exception e) {
                 log.error("Unhandled exception", e);
+                log.error("Unhandled exception", profileJson);
             }
         return profile;
     }
 
+    /**
+     * Note: the name returned here is used as the PS name when uploading to NS. When such a PS is retrieved
+     * again from NS, the added parts must be removed again, see
+     * {@link info.nightscout.androidaps.utils.PercentageSplitter#pureName}
+     */
     public String getCustomizedName() {
         String name = profileName;
-        if(LocalProfilePlugin.LOCAL_PROFILE.equals(name)){
+        if (LocalProfilePlugin.LOCAL_PROFILE.equals(name)) {
             name = DecimalFormatter.to2Decimal(getProfileObject().percentageBasalSum()) + "U ";
         }
         if (isCPP) {
@@ -117,7 +160,7 @@ public class ProfileSwitch implements Interval, DataPointWithLabelInterface {
 
     // -------- Interval interface ---------
 
-    Long cuttedEnd = null;
+    private Long cuttedEnd = null;
 
     public long durationInMsec() {
         return durationInMinutes * 60 * 1000L;
@@ -171,6 +214,41 @@ public class ProfileSwitch implements Interval, DataPointWithLabelInterface {
         return durationInMinutes == 0;
     }
 
+    @Override
+    public boolean isValid() {
+        boolean isValid = getProfileObject() != null && getProfileObject().isValid(DateUtil.dateAndTimeString(date));
+        ProfileSwitch active = TreatmentsPlugin.getPlugin().getProfileSwitchFromHistory(DateUtil.now());
+        long activeProfileSwitchDate = active != null ? active.date : -1L;
+        if (!isValid && date == activeProfileSwitchDate)
+            createNotificationInvalidProfile(DateUtil.dateAndTimeString(date));
+        return isValid;
+    }
+
+    private void createNotificationInvalidProfile(String detail) {
+        Notification notification = new Notification(Notification.ZERO_VALUE_IN_PROFILE, String.format(MainApp.gs(R.string.zerovalueinprofile), detail), Notification.LOW, 5);
+        RxBus.INSTANCE.send(new EventNewNotification(notification));
+    }
+
+    public static boolean isEvent5minBack(List<ProfileSwitch> list, long time, boolean zeroDurationOnly) {
+        for (int i = 0; i < list.size(); i++) {
+            ProfileSwitch event = list.get(i);
+            if (event.date <= time && event.date > (time - T.mins(5).msecs())) {
+                if (zeroDurationOnly) {
+                    if (event.durationInMinutes == 0) {
+                        if (L.isEnabled(L.DATABASE))
+                            log.debug("Found ProfileSwitch event for time: " + DateUtil.dateAndTimeFullString(time) + " " + event.toString());
+                        return true;
+                    }
+                } else {
+                    if (L.isEnabled(L.DATABASE))
+                        log.debug("Found ProfileSwitch event for time: " + DateUtil.dateAndTimeFullString(time) + " " + event.toString());
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // -------- Interval interface end ---------
 
     //  ----------------- DataPointInterface --------------------
@@ -217,6 +295,7 @@ public class ProfileSwitch implements Interval, DataPointWithLabelInterface {
         return Color.CYAN;
     }
 
+    @NonNull
     public String toString() {
         return "ProfileSwitch{" +
                 "date=" + date +

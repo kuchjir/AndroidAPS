@@ -10,6 +10,9 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import info.nightscout.androidaps.logging.L;
+import info.nightscout.androidaps.utils.DateUtil;
+
 /**
  * Created by mike on 27.02.2016.
  * <p>
@@ -17,7 +20,7 @@ import org.slf4j.LoggerFactory;
  */
 @DatabaseTable(tableName = DatabaseHelper.DATABASE_DBREQUESTS)
 public class DbRequest {
-    private static Logger log = LoggerFactory.getLogger(DbRequest.class);
+    private static Logger log = LoggerFactory.getLogger(L.DATABASE);
 
     @DatabaseField(id = true)
     public String nsClientID = null;
@@ -38,34 +41,47 @@ public class DbRequest {
     }
 
     // dbAdd
-    public DbRequest(String action, String collection, String nsClientID, JSONObject data) {
+    public DbRequest(String action, String collection, JSONObject data) {
         this.action = action;
         this.collection = collection;
+        this.nsClientID = "" + DateUtil.now();
+        try {
+            data.put("NSCLIENT_ID", nsClientID);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
         this.data = data.toString();
-        this.nsClientID = nsClientID;
         this._id = "";
     }
 
     // dbUpdate, dbUpdateUnset
-    public DbRequest(String action, String collection, String nsClientID, String _id, JSONObject data) {
+    public DbRequest(String action, String collection, String _id, JSONObject data) {
         this.action = action;
         this.collection = collection;
+        this.nsClientID = "" + DateUtil.now();
+        try {
+            data.put("NSCLIENT_ID", nsClientID);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
         this.data = data.toString();
-        this.nsClientID = nsClientID;
         this._id = _id;
     }
 
     // dbRemove
-    public DbRequest(String action, String collection, String nsClientID, String _id) {
+    public DbRequest(String action, String collection,
+                     String _id) {
+        JSONObject data = new JSONObject();
         this.action = action;
         this.collection = collection;
-        this.data = new JSONObject().toString();
-        this.nsClientID = nsClientID;
+        this.nsClientID = "" + DateUtil.now();
+        try {
+            data.put("NSCLIENT_ID", nsClientID);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        this.data = data.toString();
         this._id = _id;
-    }
-
-    public String hash() {
-        return Hashing.sha1().hashString(action + collection + _id + data.toString(), Charsets.UTF_8).toString();
     }
 
     public JSONObject toJSON() {
